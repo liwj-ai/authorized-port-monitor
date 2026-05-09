@@ -1,0 +1,103 @@
+name: 授权端口巡检
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: "本次运行多少分钟后停止"
+        required: true
+        default: "60"
+      port_start:
+        description: "起始端口，包含该端口"
+        required: true
+        default: "1"
+      port_end:
+        description: "结束端口，包含该端口"
+        required: true
+        default: "1024"
+      batch_size:
+        description: "每批处理多少个端口后保存进度"
+        required: true
+        default: "100"
+      connect_timeout_ms:
+        description: "TCP 连接超时，单位毫秒"
+        required: true
+        default: "700"
+      inter_probe_delay_ms:
+        description: "每次发起探测之间的间隔，单位毫秒"
+        required: true
+        default: "100"
+      batch_pause_ms:
+        description: "每批结束后的暂停时间，单位毫秒"
+        required: true
+        default: "500"
+      max_workers:
+        description: "并发 worker 数，默认保持较低"
+        required: true
+        default: "1"
+      commit_results:
+        description: "是否将结果和进度提交回当前分支"
+        required: true
+        default: "false"
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 准备输出目录
+        run: |
+          mkdir -p scan-results scan-state
+
+      - name: 运行授权端口巡检
+        run: |
+          python scripts/authorized_port_monitor.py \
+            --targets-file targets.txt \
+            --port-start "${{ inputs.port_start }}" \
+            --port-end "${{ inputs.port_end }}" \
+            --duration-minutes "${{ inputs.duration_minutes }}" \
+            --batch-size "${{ inputs.batch_size }}" \
+            --connect-timeout-ms "${{ inputs.connect_timeout_ms }}" \
+            --inter-probe-delay-ms "${{ inputs.inter_probe_delay_ms }}" \
+            --batch-pause-ms "${{ inputs.batch_pause_ms }}" \
+            --max-workers "${{ inputs.max_workers }}" \
+            --results-dir scan-results \
+            --state-dir scan-state
+
+      - name: 上传当前结果制品
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: authorized-port-monitor-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            scan-results
+            scan-state
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: 提交并推送结果
+        if: always() && inputs.commit_results == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scan-results scan-state
+          if git diff --cached --quiet; then
+            echo "没有需要提交的结果变更。"
+            exit 0
+          fi
+          git commit -m "chore: 更新授权端口巡检结果"
+          git push

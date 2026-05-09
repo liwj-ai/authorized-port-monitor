@@ -16,7 +16,7 @@ from typing import Iterable
 
 
 DENY_SUFFIXES = (
-    ".ngrok.io",
+    ".ngrok.com",
 )
 
 DENY_HOSTS = {

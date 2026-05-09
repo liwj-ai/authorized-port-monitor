@@ -121,6 +121,7 @@ class ResultWriter:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="支持断点续跑的授权端口巡检工具。")
     parser.add_argument("--targets-file", required=True)
+    parser.add_argument("--targets-input", default="")
     parser.add_argument("--port-start", type=int, required=True)
     parser.add_argument("--port-end", type=int, required=True)
     parser.add_argument("--duration-minutes", type=float, required=True)
@@ -169,11 +170,20 @@ def expand_target(raw: str) -> Iterable[ScanTarget]:
     return expanded
 
 
-def load_targets(targets_file: Path) -> list[ScanTarget]:
+def split_targets_input(raw: str) -> list[str]:
+    normalized = raw.replace(",", "\n").replace(" ", "\n").replace("\t", "\n")
+    return [item for item in normalized.splitlines() if item.strip()]
+
+
+def load_targets(targets_file: Path, targets_input: str) -> list[ScanTarget]:
     targets: list[ScanTarget] = []
-    with targets_file.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            targets.extend(expand_target(line))
+    if targets_input.strip():
+        for item in split_targets_input(targets_input):
+            targets.extend(expand_target(item))
+    else:
+        with targets_file.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                targets.extend(expand_target(line))
     if not targets:
         raise ValueError("目标文件中没有可用目标。")
     return targets
@@ -455,7 +465,7 @@ def main() -> int:
     if not 1 <= args.max_workers <= MAX_WORKERS:
         raise ValueError(f"max-workers 必须在 1 到 {MAX_WORKERS} 之间。")
 
-    targets = load_targets(Path(args.targets_file))
+    targets = load_targets(Path(args.targets_file), args.targets_input)
     writer = ResultWriter(Path(args.results_dir))
     progress_store = ProgressStore(Path(args.state_dir) / "progress.json")
     progress = default_progress(args.port_start)

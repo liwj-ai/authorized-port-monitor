@@ -3,6 +3,10 @@ name: 授权端口巡检
 on:
   workflow_dispatch:
     inputs:
+      targets_input:
+        description: "可选：直接传入目标，支持逗号、空格或换行分隔；留空时使用 targets.txt"
+        required: false
+        default: ""
       duration_minutes:
         description: "本次运行多少分钟后停止"
         required: true
@@ -67,6 +71,7 @@ jobs:
         run: |
           python scripts/authorized_port_monitor.py \
             --targets-file targets.txt \
+            --targets-input "${{ inputs.targets_input }}" \
             --port-start "${{ inputs.port_start }}" \
             --port-end "${{ inputs.port_end }}" \
             --duration-minutes "${{ inputs.duration_minutes }}" \

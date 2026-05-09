@@ -32,9 +32,28 @@
 - `scan-results/`
 - `scan-state/`
 
-## 目标文件
+## 目标来源
 
-在 `targets.txt` 中每行填写一个目标：
+你可以用两种方式提供目标：
+
+1. 在 Actions 手动运行时，通过 `targets_input` 直接传入
+2. 不传 `targets_input` 时，回退使用仓库里的 `targets.txt`
+
+`targets_input` 支持以下分隔方式：
+
+- 逗号
+- 空格
+- 换行
+
+例如：
+
+```text
+10.0.0.10,10.0.0.11
+example.internal.company 10.0.0.12
+198.51.100.0/30
+```
+
+如果你使用文件方式，在 `targets.txt` 中每行填写一个目标：
 
 ```text
 example.internal.company
@@ -46,6 +65,7 @@ example.internal.company
 
 ## 手动运行参数
 
+- `targets_input`：可选，直接传入目标列表；留空时使用 `targets.txt`
 - `duration_minutes`：本次最多运行多少分钟
 - `port_start`：起始端口，包含该端口
 - `port_end`：结束端口，包含该端口
